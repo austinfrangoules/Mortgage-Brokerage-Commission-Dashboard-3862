@@ -9,6 +9,7 @@ import LoanOfficerPortal from './components/LoanOfficerPortal';
 import LoanOfficerRoster from './components/LoanOfficerRoster';
 import LoanOfficerPayments from './components/LoanOfficerPayments';
 import LenderDirectory from './components/LenderDirectory';
+import LenderProfile from './components/LenderProfile';
 import Goals from './components/Goals';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,7 +21,7 @@ function AppContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <motion.div 
+        <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full"
@@ -41,6 +42,7 @@ function AppContent() {
         <Route path="/loan-officers" element={user?.type === 'admin' ? <Layout><LoanOfficerRoster /></Layout> : <Navigate to="/" />} />
         <Route path="/loan-officer-payments" element={user?.type === 'admin' ? <Layout><LoanOfficerPayments /></Layout> : <Navigate to="/" />} />
         <Route path="/lenders" element={user ? <Layout><LenderDirectory /></Layout> : <Navigate to="/login" />} />
+        <Route path="/lenders/:id" element={user ? <Layout><LenderProfile /></Layout> : <Navigate to="/login" />} />
         <Route path="/goals" element={user ? <Layout><Goals /></Layout> : <Navigate to="/login" />} />
       </Routes>
     </AnimatePresence>

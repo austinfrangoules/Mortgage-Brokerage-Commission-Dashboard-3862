@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useData } from '../context/DataContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 const { 
   FiPlus, 
@@ -25,6 +26,7 @@ const {
 } = FiIcons;
 
 function LenderDirectory() {
+  const navigate = useNavigate();
   const { lenders, addLender, updateLender, deleteLender, transactions } = useData();
   const [showLenderForm, setShowLenderForm] = useState(false);
   const [editingLender, setEditingLender] = useState(null);
@@ -37,6 +39,7 @@ function LenderDirectory() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showSortOptions, setShowSortOptions] = useState(false);
   const [filters, setFilters] = useState({
     isInArive: 'all', // 'all', 'yes', 'no'
     isVaApproved: 'all', // 'all', 'yes', 'no'
@@ -149,7 +152,8 @@ function LenderDirectory() {
     });
   };
 
-  const handleEdit = (lender) => {
+  const handleEdit = (lender, e) => {
+    if (e) e.stopPropagation();
     setEditingLender(lender);
     setFormData({
       ...lender,
@@ -162,10 +166,15 @@ function LenderDirectory() {
     setShowLenderForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id, e) => {
+    if (e) e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this lender?')) {
       deleteLender(id);
     }
+  };
+
+  const handleViewProfile = (lenderId) => {
+    navigate(`/lenders/${lenderId}`);
   };
 
   const resetFilters = () => {
@@ -186,6 +195,7 @@ function LenderDirectory() {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+    setShowSortOptions(false);
   };
 
   const filteredLenders = useMemo(() => {
@@ -337,33 +347,36 @@ function LenderDirectory() {
               <SafeIcon icon={FiFilter} className="text-gray-600" />
             </button>
             
-            <div className="relative group">
+            <div className="relative">
               <button
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onClick={() => setShowSortOptions(!showSortOptions)}
+                className={`p-2 border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${showSortOptions ? 'bg-blue-50 text-blue-500 border-blue-200' : ''}`}
                 title="Sort Options"
               >
                 <SafeIcon icon={FiSliders} className="text-gray-600" />
               </button>
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 hidden group-hover:block">
-                <div className="px-4 py-2 border-b">
-                  <p className="text-sm font-medium text-gray-900">Sort by</p>
+              {showSortOptions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b">
+                    <p className="text-sm font-medium text-gray-900">Sort by</p>
+                  </div>
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => handleSort(option.key)}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between"
+                    >
+                      <span>{option.label}</span>
+                      {sortConfig.key === option.key && (
+                        <SafeIcon 
+                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
+                          className="text-blue-500" 
+                        />
+                      )}
+                    </button>
+                  ))}
                 </div>
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    onClick={() => handleSort(option.key)}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between"
-                  >
-                    <span>{option.label}</span>
-                    {sortConfig.key === option.key && (
-                      <SafeIcon 
-                        icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
-                        className="text-blue-500" 
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
+              )}
             </div>
             
             <button
@@ -509,31 +522,27 @@ function LenderDirectory() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                onClick={() => handleViewProfile(lender.id)}
+                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
               >
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <SafeIcon icon={FiBuilding} className="text-blue-600 text-lg" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{lender.name}</h3>
-                      {lender.accountExecutive && (
-                        <p className="text-sm text-gray-600">{lender.accountExecutive}</p>
-                      )}
-                    </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{lender.name}</h3>
+                    {lender.accountExecutive && (
+                      <p className="text-sm text-gray-600">{lender.accountExecutive}</p>
+                    )}
                   </div>
                   <div className="flex space-x-1">
                     <button
-                      onClick={() => handleEdit(lender)}
+                      onClick={(e) => handleEdit(lender, e)}
                       className="p-1 text-blue-600 hover:text-blue-900"
                       title="Edit Lender"
                     >
                       <SafeIcon icon={FiEdit3} />
                     </button>
                     <button
-                      onClick={() => handleDelete(lender.id)}
+                      onClick={(e) => handleDelete(lender.id, e)}
                       className="p-1 text-red-600 hover:text-red-900"
                       title="Delete Lender"
                     >
@@ -564,6 +573,7 @@ function LenderDirectory() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {lender.website}
                       </a>
@@ -571,22 +581,25 @@ function LenderDirectory() {
                   )}
                 </div>
 
-                {/* Loan Types */}
-                {lender.loanTypes && lender.loanTypes.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Loan Types</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {lender.loanTypes.map((type, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                        >
-                          {type}
-                        </span>
-                      ))}
+                {/* Certifications */}
+                <div className="mb-4">
+                  <div className="flex space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <SafeIcon 
+                        icon={lender.isInArive ? FiCheck : FiX} 
+                        className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`} 
+                      />
+                      <span className="text-xs text-gray-600">ARIVE</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <SafeIcon 
+                        icon={lender.isVaApproved ? FiCheck : FiX} 
+                        className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`} 
+                      />
+                      <span className="text-xs text-gray-600">VA Approved</span>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Compensation Information */}
                 <div className="mb-4">
@@ -607,26 +620,22 @@ function LenderDirectory() {
                   </div>
                 </div>
 
-                {/* Certifications */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Certifications</h4>
-                  <div className="flex space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <SafeIcon 
-                        icon={lender.isInArive ? FiCheck : FiX} 
-                        className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`} 
-                      />
-                      <span className="text-xs text-gray-600">ARIVE</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <SafeIcon 
-                        icon={lender.isVaApproved ? FiCheck : FiX} 
-                        className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`} 
-                      />
-                      <span className="text-xs text-gray-600">VA Approved</span>
+                {/* Loan Types */}
+                {lender.loanTypes && lender.loanTypes.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Loan Types</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {lender.loanTypes.map((type, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                        >
+                          {type}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Statistics */}
                 <div className="border-t pt-4">
@@ -687,9 +696,6 @@ function LenderDirectory() {
                     Contact Info
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Loan Types
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
                       onClick={() => handleSort('brokerCompPercentage')}
                       className="flex items-center space-x-1 hover:text-gray-700"
@@ -705,6 +711,9 @@ function LenderDirectory() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Certifications
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Loan Types
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
@@ -734,14 +743,12 @@ function LenderDirectory() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      className="hover:bg-gray-50"
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleViewProfile(lender.id)}
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <SafeIcon icon={FiBuilding} className="text-blue-600" />
-                          </div>
-                          <div className="ml-4">
+                          <div className="ml-1">
                             <div className="font-medium text-gray-900">{lender.name}</div>
                             {lender.accountExecutive && (
                               <div className="text-sm text-gray-500">{lender.accountExecutive}</div>
@@ -763,18 +770,6 @@ function LenderDirectory() {
                               <span>{lender.aeEmail}</span>
                             </div>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {lender.loanTypes?.map((type, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"
-                            >
-                              {type}
-                            </span>
-                          ))}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -805,22 +800,34 @@ function LenderDirectory() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {lender.loanTypes?.map((type, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full"
+                            >
+                              {type}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           <div className="font-medium">{stats.currentYearTransactions} this year</div>
                           <div className="text-xs text-gray-500">{stats.totalTransactions} total</div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => handleEdit(lender)}
+                          onClick={(e) => handleEdit(lender, e)}
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="Edit Lender"
                         >
                           <SafeIcon icon={FiEdit3} />
                         </button>
                         <button
-                          onClick={() => handleDelete(lender.id)}
+                          onClick={(e) => handleDelete(lender.id, e)}
                           className="text-red-600 hover:text-red-900 p-1"
                           title="Delete Lender"
                         >
