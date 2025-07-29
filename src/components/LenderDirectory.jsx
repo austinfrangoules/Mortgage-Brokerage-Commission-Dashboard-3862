@@ -1,42 +1,27 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-const { 
-  FiPlus, 
-  FiEdit3, 
-  FiTrash2, 
-  FiBuilding, 
-  FiPhone, 
-  FiMail, 
-  FiGlobe, 
-  FiFilter, 
-  FiSearch, 
-  FiList, 
-  FiGrid, 
-  FiChevronDown, 
-  FiChevronUp,
-  FiCheck, 
-  FiX,
-  FiSliders,
-  FiRefreshCw
-} = FiIcons;
+const { FiPlus, FiEdit3, FiTrash2, FiBuilding, FiPhone, FiMail, FiGlobe, FiFilter, FiSearch, FiList, FiGrid, FiChevronDown, FiChevronUp, FiCheck, FiX, FiSliders, FiRefreshCw, FiClock, FiAlertCircle } = FiIcons;
 
 function LenderDirectory() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { lenders, addLender, updateLender, deleteLender, transactions } = useData();
   const [showLenderForm, setShowLenderForm] = useState(false);
   const [editingLender, setEditingLender] = useState(null);
-  
+  const [pendingUpdates, setPendingUpdates] = useState([]); // For loan officer updates awaiting approval
+
   // Get stored view preference or default to table
   const [viewMode, setViewMode] = useState(() => {
     const savedViewMode = localStorage.getItem('lenderDirectoryViewMode');
     return savedViewMode || 'table'; // Default to table view
   });
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showSortOptions, setShowSortOptions] = useState(false);
@@ -51,7 +36,7 @@ function LenderDirectory() {
     key: 'name',
     direction: 'asc'
   });
-  
+
   const [formData, setFormData] = useState({
     name: '',
     accountExecutive: '',
@@ -74,10 +59,8 @@ function LenderDirectory() {
   // Format phone number to (111) 111-1111 style
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return '';
-    
     // Strip all non-numeric characters
     const cleaned = phoneNumber.replace(/\D/g, '');
-    
     // Check if we have the right length
     if (cleaned.length === 10) {
       return `(${cleaned.substring(0, 3)}) ${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
@@ -85,7 +68,6 @@ function LenderDirectory() {
       // For numbers with country code or extra digits
       return `(${cleaned.substring(0, 3)}) ${cleaned.substring(3, 6)}-${cleaned.substring(6, 10)}`;
     }
-    
     // If the number doesn't match the format, return the original
     return phoneNumber;
   };
@@ -98,40 +80,55 @@ function LenderDirectory() {
       const transactionDate = new Date(t.applicationDate);
       return transactionDate.getFullYear() === currentYear;
     });
-    
     const closedTransactions = lenderTransactions.filter(t => t.status === 'Closed');
+
     return {
       totalTransactions: lenderTransactions.length,
       currentYearTransactions: currentYearTransactions.length,
       closedTransactions: closedTransactions.length,
       totalVolume: lenderTransactions.reduce((sum, t) => sum + t.loanAmount, 0),
-      avgLoanAmount: lenderTransactions.length > 0 ? 
-        lenderTransactions.reduce((sum, t) => sum + t.loanAmount, 0) / lenderTransactions.length : 0,
-      conversionRate: lenderTransactions.length > 0 ? 
-        (closedTransactions.length / lenderTransactions.length) * 100 : 0
+      avgLoanAmount: lenderTransactions.length > 0 ? lenderTransactions.reduce((sum, t) => sum + t.loanAmount, 0) / lenderTransactions.length : 0,
+      conversionRate: lenderTransactions.length > 0 ? (closedTransactions.length / lenderTransactions.length) * 100 : 0
     };
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     // Format phone number before saving
     const formattedContactNumber = formatPhoneNumber(formData.contactNumber);
-    
+
     const lenderData = {
       ...formData,
       contactNumber: formattedContactNumber,
       brokerCompPercentage: parseFloat(formData.brokerCompPercentage) || 0,
       flatFeeAmount: parseFloat(formData.flatFeeAmount) || 0
     };
-    
-    if (editingLender) {
-      updateLender(editingLender.id, lenderData);
-      setEditingLender(null);
+
+    if (user?.type === 'loan_officer') {
+      // For loan officers, add to pending updates
+      const pendingUpdate = {
+        id: Date.now(),
+        lenderId: editingLender?.id || null,
+        data: lenderData,
+        action: editingLender ? 'update' : 'add',
+        submittedBy: user.name,
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+      };
+      setPendingUpdates(prev => [...prev, pendingUpdate]);
+      
+      // Show success message
+      alert('Your lender directory update has been submitted for admin approval.');
     } else {
-      addLender(lenderData);
+      // Admin can directly update
+      if (editingLender) {
+        updateLender(editingLender.id, lenderData);
+        setEditingLender(null);
+      } else {
+        addLender(lenderData);
+      }
     }
-    
+
     setShowLenderForm(false);
     resetForm();
   };
@@ -168,6 +165,10 @@ function LenderDirectory() {
 
   const handleDelete = (id, e) => {
     if (e) e.stopPropagation();
+    if (user?.type !== 'admin') {
+      alert('Only administrators can delete lenders.');
+      return;
+    }
     if (window.confirm('Are you sure you want to delete this lender?')) {
       deleteLender(id);
     }
@@ -198,53 +199,67 @@ function LenderDirectory() {
     setShowSortOptions(false);
   };
 
+  // Approve pending update (admin only)
+  const approvePendingUpdate = (pendingUpdate) => {
+    if (pendingUpdate.action === 'add') {
+      addLender(pendingUpdate.data);
+    } else if (pendingUpdate.action === 'update') {
+      updateLender(pendingUpdate.lenderId, pendingUpdate.data);
+    }
+    setPendingUpdates(prev => prev.filter(p => p.id !== pendingUpdate.id));
+  };
+
+  // Reject pending update (admin only)
+  const rejectPendingUpdate = (pendingUpdateId) => {
+    setPendingUpdates(prev => prev.filter(p => p.id !== pendingUpdateId));
+  };
+
   const filteredLenders = useMemo(() => {
     let results = [...lenders];
-    
+
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         lender.name.toLowerCase().includes(searchLower) ||
         (lender.accountExecutive && lender.accountExecutive.toLowerCase().includes(searchLower)) ||
         (lender.notes && lender.notes.toLowerCase().includes(searchLower))
       );
     }
-    
+
     // Apply ARIVE filter
     if (filters.isInArive !== 'all') {
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         (filters.isInArive === 'yes' ? lender.isInArive : !lender.isInArive)
       );
     }
-    
+
     // Apply VA Approved filter
     if (filters.isVaApproved !== 'all') {
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         (filters.isVaApproved === 'yes' ? lender.isVaApproved : !lender.isVaApproved)
       );
     }
-    
+
     // Apply Broker Comp range filter
     if (filters.minBrokerComp !== '') {
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         lender.brokerCompPercentage >= parseFloat(filters.minBrokerComp)
       );
     }
-    
     if (filters.maxBrokerComp !== '') {
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         lender.brokerCompPercentage <= parseFloat(filters.maxBrokerComp)
       );
     }
-    
+
     // Apply loan type filters
     if (filters.loanTypes.length > 0) {
-      results = results.filter(lender => 
+      results = results.filter(lender =>
         filters.loanTypes.some(type => lender.loanTypes?.includes(type))
       );
     }
-    
+
     // Apply sorting
     if (sortConfig.key) {
       results.sort((a, b) => {
@@ -252,18 +267,18 @@ function LenderDirectory() {
         if (sortConfig.key === 'transactions') {
           const statsA = getLenderStats(a.id);
           const statsB = getLenderStats(b.id);
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? statsA.currentYearTransactions - statsB.currentYearTransactions
             : statsB.currentYearTransactions - statsA.currentYearTransactions;
         }
-        
+
         // For broker comp sorting
         if (sortConfig.key === 'brokerCompPercentage') {
           const valueA = a.brokerCompPercentage || 0;
           const valueB = b.brokerCompPercentage || 0;
           return sortConfig.direction === 'asc' ? valueA - valueB : valueB - valueA;
         }
-        
+
         // Default string sorting
         if (a[sortConfig.key] < b[sortConfig.key]) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -274,11 +289,12 @@ function LenderDirectory() {
         return 0;
       });
     }
-    
+
     return results;
   }, [lenders, searchTerm, filters, sortConfig]);
-  
+
   const loanTypeOptions = ['Conventional', 'FHA', 'VA', 'USDA', 'Jumbo', 'HELOC', 'Construction'];
+
   const sortOptions = [
     { key: 'name', label: 'Lender Name' },
     { key: 'brokerCompPercentage', label: 'Broker Comp %' },
@@ -296,16 +312,79 @@ function LenderDirectory() {
           <h1 className="text-3xl font-bold text-gray-900">Lender Directory</h1>
           <p className="text-gray-600 mt-1">Manage your lending partners and their information</p>
         </motion.div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowLenderForm(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg"
-        >
-          <SafeIcon icon={FiPlus} />
-          <span>Add Lender</span>
-        </motion.button>
+
+        <div className="flex items-center space-x-4">
+          {/* Pending updates notification for admin */}
+          {user?.type === 'admin' && pendingUpdates.length > 0 && (
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3">
+              <div className="flex items-center space-x-2">
+                <SafeIcon icon={FiClock} className="text-yellow-600" />
+                <span className="text-sm font-medium text-yellow-800">
+                  {pendingUpdates.length} pending update{pendingUpdates.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowLenderForm(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium flex items-center space-x-2 shadow-lg"
+          >
+            <SafeIcon icon={FiPlus} />
+            <span>{user?.type === 'loan_officer' ? 'Suggest Lender' : 'Add Lender'}</span>
+          </motion.button>
+        </div>
       </div>
+
+      {/* Pending Updates Section (Admin Only) */}
+      {user?.type === 'admin' && pendingUpdates.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-lg p-6"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Lender Updates</h3>
+          <div className="space-y-4">
+            {pendingUpdates.map(update => (
+              <div key={update.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900">
+                      {update.action === 'add' ? 'New Lender' : 'Update Lender'}: {update.data.name}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Submitted by {update.submittedBy} on {new Date(update.submittedAt).toLocaleDateString()}
+                    </p>
+                    <div className="mt-2 text-sm text-gray-700">
+                      <p><strong>Account Executive:</strong> {update.data.accountExecutive}</p>
+                      <p><strong>Contact:</strong> {update.data.contactNumber}</p>
+                      <p><strong>Broker Comp:</strong> {update.data.brokerCompPercentage}%</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => approvePendingUpdate(update)}
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                    >
+                      <SafeIcon icon={FiCheck} className="text-xs" />
+                      <span>Approve</span>
+                    </button>
+                    <button
+                      onClick={() => rejectPendingUpdate(update.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                    >
+                      <SafeIcon icon={FiX} className="text-xs" />
+                      <span>Reject</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Search and Filter Bar */}
       <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
@@ -320,7 +399,7 @@ function LenderDirectory() {
               className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2 w-full md:w-auto">
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
@@ -338,7 +417,7 @@ function LenderDirectory() {
                 <SafeIcon icon={FiList} />
               </button>
             </div>
-            
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${showFilters ? 'bg-blue-50 text-blue-500 border-blue-200' : ''}`}
@@ -346,7 +425,7 @@ function LenderDirectory() {
             >
               <SafeIcon icon={FiFilter} className="text-gray-600" />
             </button>
-            
+
             <div className="relative">
               <button
                 onClick={() => setShowSortOptions(!showSortOptions)}
@@ -355,6 +434,7 @@ function LenderDirectory() {
               >
                 <SafeIcon icon={FiSliders} className="text-gray-600" />
               </button>
+
               {showSortOptions && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
                   <div className="px-4 py-2 border-b">
@@ -368,9 +448,9 @@ function LenderDirectory() {
                     >
                       <span>{option.label}</span>
                       {sortConfig.key === option.key && (
-                        <SafeIcon 
-                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
-                          className="text-blue-500" 
+                        <SafeIcon
+                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown}
+                          className="text-blue-500"
                         />
                       )}
                     </button>
@@ -378,7 +458,7 @@ function LenderDirectory() {
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={resetFilters}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -388,9 +468,9 @@ function LenderDirectory() {
             </button>
           </div>
         </div>
-        
+
         {showFilters && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -411,7 +491,7 @@ function LenderDirectory() {
                   <option value="no">No</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   VA Approved
@@ -426,7 +506,7 @@ function LenderDirectory() {
                   <option value="no">No</option>
                 </select>
               </div>
-              
+
               <div className="flex space-x-2 items-end">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -458,7 +538,7 @@ function LenderDirectory() {
                 </div>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Loan Types
@@ -473,10 +553,7 @@ function LenderDirectory() {
                         if (e.target.checked) {
                           setFilters({ ...filters, loanTypes: [...filters.loanTypes, type] });
                         } else {
-                          setFilters({ 
-                            ...filters, 
-                            loanTypes: filters.loanTypes.filter(t => t !== type) 
-                          });
+                          setFilters({ ...filters, loanTypes: filters.loanTypes.filter(t => t !== type) });
                         }
                       }}
                       className="mr-2"
@@ -488,15 +565,13 @@ function LenderDirectory() {
             </div>
           </motion.div>
         )}
-        
+
         <div className="flex justify-between items-center text-sm">
           <p className="text-gray-600">
             {filteredLenders.length} lenders found
           </p>
           <p className="text-gray-600">
-            Sorted by: <span className="font-medium">{
-              sortOptions.find(option => option.key === sortConfig.key)?.label || 'Name'
-            }</span> ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+            Sorted by: <span className="font-medium">{sortOptions.find(option => option.key === sortConfig.key)?.label || 'Name'}</span> ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
           </p>
         </div>
       </div>
@@ -504,7 +579,7 @@ function LenderDirectory() {
       {filteredLenders.length === 0 ? (
         <div className="bg-white rounded-xl shadow-lg p-8 text-center">
           <p className="text-gray-500 mb-4">No lenders found matching your criteria</p>
-          <button 
+          <button
             onClick={resetFilters}
             className="text-blue-500 hover:text-blue-700 font-medium flex items-center justify-center mx-auto"
           >
@@ -541,13 +616,15 @@ function LenderDirectory() {
                     >
                       <SafeIcon icon={FiEdit3} />
                     </button>
-                    <button
-                      onClick={(e) => handleDelete(lender.id, e)}
-                      className="p-1 text-red-600 hover:text-red-900"
-                      title="Delete Lender"
-                    >
-                      <SafeIcon icon={FiTrash2} />
-                    </button>
+                    {user?.type === 'admin' && (
+                      <button
+                        onClick={(e) => handleDelete(lender.id, e)}
+                        className="p-1 text-red-600 hover:text-red-900"
+                        title="Delete Lender"
+                      >
+                        <SafeIcon icon={FiTrash2} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -585,16 +662,16 @@ function LenderDirectory() {
                 <div className="mb-4">
                   <div className="flex space-x-4">
                     <div className="flex items-center space-x-1">
-                      <SafeIcon 
-                        icon={lender.isInArive ? FiCheck : FiX} 
-                        className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`} 
+                      <SafeIcon
+                        icon={lender.isInArive ? FiCheck : FiX}
+                        className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`}
                       />
                       <span className="text-xs text-gray-600">ARIVE</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <SafeIcon 
-                        icon={lender.isVaApproved ? FiCheck : FiX} 
-                        className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`} 
+                      <SafeIcon
+                        icon={lender.isVaApproved ? FiCheck : FiX}
+                        className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`}
                       />
                       <span className="text-xs text-gray-600">VA Approved</span>
                     </div>
@@ -679,15 +756,15 @@ function LenderDirectory() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
+                    <button
                       onClick={() => handleSort('name')}
                       className="flex items-center space-x-1 hover:text-gray-700"
                     >
                       <span>Lender</span>
                       {sortConfig.key === 'name' && (
-                        <SafeIcon 
-                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
-                          className="text-blue-500" 
+                        <SafeIcon
+                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown}
+                          className="text-blue-500"
                         />
                       )}
                     </button>
@@ -696,15 +773,15 @@ function LenderDirectory() {
                     Contact Info
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
+                    <button
                       onClick={() => handleSort('brokerCompPercentage')}
                       className="flex items-center space-x-1 hover:text-gray-700"
                     >
                       <span>Comp %</span>
                       {sortConfig.key === 'brokerCompPercentage' && (
-                        <SafeIcon 
-                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
-                          className="text-blue-500" 
+                        <SafeIcon
+                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown}
+                          className="text-blue-500"
                         />
                       )}
                     </button>
@@ -716,15 +793,15 @@ function LenderDirectory() {
                     Loan Types
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
+                    <button
                       onClick={() => handleSort('transactions')}
                       className="flex items-center space-x-1 hover:text-gray-700"
                     >
                       <span>Transactions</span>
                       {sortConfig.key === 'transactions' && (
-                        <SafeIcon 
-                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown} 
-                          className="text-blue-500" 
+                        <SafeIcon
+                          icon={sortConfig.direction === 'asc' ? FiChevronUp : FiChevronDown}
+                          className="text-blue-500"
                         />
                       )}
                     </button>
@@ -738,8 +815,8 @@ function LenderDirectory() {
                 {filteredLenders.map((lender, index) => {
                   const stats = getLenderStats(lender.id);
                   return (
-                    <motion.tr 
-                      key={lender.id} 
+                    <motion.tr
+                      key={lender.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: index * 0.05 }}
@@ -785,16 +862,16 @@ function LenderDirectory() {
                       <td className="px-4 py-4">
                         <div className="flex space-x-3">
                           <div className="flex items-center space-x-1">
-                            <SafeIcon 
-                              icon={lender.isInArive ? FiCheck : FiX} 
-                              className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`} 
+                            <SafeIcon
+                              icon={lender.isInArive ? FiCheck : FiX}
+                              className={`text-xs ${lender.isInArive ? 'text-green-600' : 'text-red-600'}`}
                             />
                             <span className="text-xs text-gray-600">ARIVE</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <SafeIcon 
-                              icon={lender.isVaApproved ? FiCheck : FiX} 
-                              className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`} 
+                            <SafeIcon
+                              icon={lender.isVaApproved ? FiCheck : FiX}
+                              className={`text-xs ${lender.isVaApproved ? 'text-green-600' : 'text-red-600'}`}
                             />
                             <span className="text-xs text-gray-600">VA</span>
                           </div>
@@ -818,7 +895,10 @@ function LenderDirectory() {
                           <div className="text-xs text-gray-500">{stats.totalTransactions} total</div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           onClick={(e) => handleEdit(lender, e)}
                           className="text-blue-600 hover:text-blue-900 p-1"
@@ -826,13 +906,15 @@ function LenderDirectory() {
                         >
                           <SafeIcon icon={FiEdit3} />
                         </button>
-                        <button
-                          onClick={(e) => handleDelete(lender.id, e)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete Lender"
-                        >
-                          <SafeIcon icon={FiTrash2} />
-                        </button>
+                        {user?.type === 'admin' && (
+                          <button
+                            onClick={(e) => handleDelete(lender.id, e)}
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="Delete Lender"
+                          >
+                            <SafeIcon icon={FiTrash2} />
+                          </button>
+                        )}
                       </td>
                     </motion.tr>
                   );
@@ -854,6 +936,11 @@ function LenderDirectory() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingLender ? 'Edit Lender' : 'Add New Lender'}
+                {user?.type === 'loan_officer' && (
+                  <span className="text-sm text-orange-600 block">
+                    (Requires admin approval)
+                  </span>
+                )}
               </h2>
             </div>
 

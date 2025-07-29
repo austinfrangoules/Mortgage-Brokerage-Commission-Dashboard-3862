@@ -7,12 +7,19 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { format } from 'date-fns';
 
-const { FiPlus, FiEdit3, FiTrash2, FiDollarSign, FiTrendingUp, FiClock, FiCheck, FiFilter, FiSearch, FiDownload, FiEye, FiX, FiMaximize2, FiMinimize2, FiMapPin } = FiIcons;
+const { 
+  FiPlus, FiEdit3, FiTrash2, FiDollarSign, FiTrendingUp, FiClock, FiCheck, 
+  FiFilter, FiSearch, FiDownload, FiEye, FiX, FiMaximize2, FiMinimize2, 
+  FiMapPin, FiUser, FiHome, FiCalendar, FiFileText, FiPhone, FiMail, 
+  FiBuilding, FiCreditCard, FiClipboard, FiAlertCircle, FiCheckCircle, 
+  FiInfo, FiUsers
+} = FiIcons;
 
 function Dashboard() {
   const navigate = useNavigate();
   const { transactions, loanOfficers, lenders, referralSources, deleteTransaction } = useData();
   const { user } = useAuth();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
@@ -44,10 +51,9 @@ function Dashboard() {
     .filter(t => loanTypeFilter === 'all' ? true : t.loanType === loanTypeFilter)
     .filter(t => purposeFilter === 'all' ? true : t.purpose === purposeFilter)
     .filter(t => loanOfficerFilter === 'all' ? true : t.loanOfficerId === parseInt(loanOfficerFilter))
-    .filter(t => searchTerm === '' ? true : 
-      t.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.property.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.notes && t.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(t => searchTerm === '' ? true : t.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                          t.property.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                          (t.notes && t.notes.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
       if (sortField === 'closingDate') {
@@ -80,25 +86,22 @@ function Dashboard() {
   // Calculate totals for all filtered transactions
   const calculateTotals = (transactions) => {
     const totalLoanAmount = transactions.reduce((sum, t) => sum + t.loanAmount, 0);
-    const totalCommission = transactions.filter(t => t.status === 'Closed').reduce((sum, t) => sum + (t.loanAmount * t.commissionRate / 100), 0);
+    const totalCommission = transactions.filter(t => t.status === 'Closed').reduce((sum, t) => sum + (t.commissionAmount || 0), 0);
+    const totalPayouts = transactions.filter(t => t.status === 'Closed').reduce((sum, t) => sum + (t.loFinalPayout || 0), 0);
+    const companyProfit = transactions.filter(t => t.status === 'Closed').reduce((sum, t) => sum + (t.companyProfit || 0), 0);
     const avgRate = transactions.filter(t => t.rate).reduce((sum, t, _, arr) => sum + t.rate / arr.length, 0);
     
     return {
       totalLoanAmount,
       totalCommission,
+      totalPayouts,
+      companyProfit,
       avgRate: avgRate || 0,
       transactionCount: transactions.length
     };
   };
 
   const overallTotals = calculateTotals(filteredTransactions);
-
-  const stats = {
-    totalCommission: filteredTransactions.reduce((sum, t) => sum + (t.status === 'Closed' ? (t.loanAmount * t.commissionRate / 100) : 0), 0),
-    pendingCommission: filteredTransactions.reduce((sum, t) => sum + (t.status === 'In Process' ? (t.loanAmount * t.commissionRate / 100) : 0), 0),
-    totalTransactions: filteredTransactions.length,
-    closedTransactions: filteredTransactions.filter(t => t.status === 'Closed').length
-  };
 
   const handleEdit = (id) => {
     navigate(`/transactions/edit/${id}`);
@@ -134,9 +137,10 @@ function Dashboard() {
         'Purpose': t.purpose,
         'Interest Rate': t.rate || '',
         'Commission Rate': t.commissionRate,
-        'Commission Amount': (t.loanAmount * t.commissionRate / 100),
-        'LO Commission': t.loCommission || '',
-        'Company Profit': t.companyProfit || '',
+        'Total Commission': t.commissionAmount || 0,
+        'LO Commission %': t.loCommissionPercentage || 0,
+        'LO Final Payout': t.loFinalPayout || 0,
+        'Company Profit': t.companyProfit || 0,
         'Status': t.status,
         'Closing Date': t.closingDate || '',
         'Date Paid LO': t.datePaidLO || '',
@@ -179,6 +183,7 @@ function Dashboard() {
             {user?.type === 'admin' ? 'Overview of all transactions' : 'Your transaction overview'}
           </p>
         </motion.div>
+
         <div className="flex space-x-2">
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
@@ -234,40 +239,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards - Only show if not in expanded view */}
-      {!expandedView && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Total Commission"
-            value={`$${stats.totalCommission.toLocaleString()}`}
-            icon={FiDollarSign}
-            color="green"
-            delay={0.1}
-          />
-          <StatCard
-            title="Pending Commission"
-            value={`$${stats.pendingCommission.toLocaleString()}`}
-            icon={FiClock}
-            color="yellow"
-            delay={0.2}
-          />
-          <StatCard
-            title="Total Transactions"
-            value={stats.totalTransactions}
-            icon={FiTrendingUp}
-            color="blue"
-            delay={0.3}
-          />
-          <StatCard
-            title="Closed Deals"
-            value={stats.closedTransactions}
-            icon={FiCheck}
-            color="purple"
-            delay={0.4}
-          />
-        </div>
-      )}
-
       {/* Search and Filter Bar */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -294,7 +265,7 @@ function Dashboard() {
               <SafeIcon icon={FiFilter} className="text-gray-600" />
             </button>
           </div>
-          
+
           {showFilters && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <select
@@ -307,7 +278,7 @@ function Dashboard() {
                   <option key={state} value={state}>{state}</option>
                 ))}
               </select>
-              
+
               <select
                 value={loanTypeFilter}
                 onChange={(e) => setLoanTypeFilter(e.target.value)}
@@ -318,7 +289,7 @@ function Dashboard() {
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
-              
+
               <select
                 value={purposeFilter}
                 onChange={(e) => setPurposeFilter(e.target.value)}
@@ -329,7 +300,7 @@ function Dashboard() {
                   <option key={purpose} value={purpose}>{purpose}</option>
                 ))}
               </select>
-              
+
               {user?.type === 'admin' && (
                 <select
                   value={loanOfficerFilter}
@@ -342,7 +313,7 @@ function Dashboard() {
                   ))}
                 </select>
               )}
-              
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -358,7 +329,7 @@ function Dashboard() {
               </select>
             </div>
           )}
-          
+
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => toggleSort('closingDate')}
@@ -390,7 +361,7 @@ function Dashboard() {
 
       {/* Transactions Display */}
       {viewMode === 'table' ? (
-        <TableView 
+        <TableView
           transactions={filteredTransactions}
           user={user}
           loanOfficers={loanOfficers}
@@ -402,7 +373,7 @@ function Dashboard() {
           extractState={extractState}
         />
       ) : viewMode === 'comprehensive' ? (
-        <StateBasedView 
+        <StateBasedView
           transactionsByState={transactionsByState}
           user={user}
           loanOfficers={loanOfficers}
@@ -416,7 +387,7 @@ function Dashboard() {
           setSelectedTransaction={setSelectedTransaction}
         />
       ) : (
-        <DetailedView 
+        <DetailedView
           transactions={filteredTransactions}
           user={user}
           loanOfficers={loanOfficers}
@@ -451,9 +422,15 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
       transition={{ delay: 0.6 }}
       className="space-y-6"
     >
-      {Object.entries(transactionsByState).map(([state, transactions], stateIndex) => {
+      {Object.entries(transactionsByState)
+        .sort(([stateA, transactionsA], [stateB, transactionsB]) => {
+          // Sort by total loan amount (descending)
+          const totalsA = calculateTotals(transactionsA);
+          const totalsB = calculateTotals(transactionsB);
+          return totalsB.totalLoanAmount - totalsA.totalLoanAmount;
+        })
+        .map(([state, transactions], stateIndex) => {
         const stateTotals = calculateTotals(transactions);
-        
         return (
           <div key={state} className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-between">
@@ -469,7 +446,6 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                 <p className="text-lg font-bold">${stateTotals.totalCommission.toLocaleString()}</p>
               </div>
             </div>
-            
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
@@ -501,6 +477,9 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                       Commission $
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      LO Payout
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -512,9 +491,15 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {transactions.map((transaction, index) => {
+                  {transactions
+                    .sort((a, b) => {
+                      // Sort by closing date (most recent first)
+                      const dateA = new Date(a.closingDate || '9999-12-31');
+                      const dateB = new Date(b.closingDate || '9999-12-31');
+                      return dateA - dateB;
+                    })
+                    .map((transaction, index) => {
                     const loanOfficer = loanOfficers.find(lo => lo.id === transaction.loanOfficerId);
-                    
                     return (
                       <motion.tr
                         key={transaction.id}
@@ -553,17 +538,27 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                           {transaction.commissionRate}%
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                          ${(transaction.loanAmount * transaction.commissionRate / 100).toLocaleString()}
+                          ${(transaction.commissionAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                          ${(transaction.loFinalPayout || 0).toLocaleString()}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            transaction.status === 'Closed' ? 'bg-green-100 text-green-800' :
-                            transaction.status === 'In Process' ? 'bg-yellow-100 text-yellow-800' :
-                            transaction.status === 'Application' ? 'bg-blue-100 text-blue-800' :
-                            transaction.status === 'Underwriting' ? 'bg-purple-100 text-purple-800' :
-                            transaction.status === 'Approved' ? 'bg-indigo-100 text-indigo-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              transaction.status === 'Closed'
+                                ? 'bg-green-100 text-green-800'
+                                : transaction.status === 'In Process'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : transaction.status === 'Application'
+                                ? 'bg-blue-100 text-blue-800'
+                                : transaction.status === 'Underwriting'
+                                ? 'bg-purple-100 text-purple-800'
+                                : transaction.status === 'Approved'
+                                ? 'bg-indigo-100 text-indigo-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
                             {transaction.status}
                           </span>
                         </td>
@@ -599,8 +594,11 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                 {/* State Totals Row */}
                 <tfoot className="bg-blue-50 border-t-2 border-blue-200">
                   <tr className="font-semibold text-blue-900">
-                    <td className="px-3 py-3" colSpan={user?.type === 'admin' ? 4 : 3}>
+                    <td className="px-3 py-3" colSpan={user?.type === 'admin' ? 2 : 1}>
                       {state} Totals
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {stateTotals.transactionCount} Transactions
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
                       ${stateTotals.totalLoanAmount.toLocaleString()}
@@ -613,7 +611,10 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
                     <td className="px-3 py-3 whitespace-nowrap text-green-700">
                       ${stateTotals.totalCommission.toLocaleString()}
                     </td>
-                    <td className="px-3 py-3" colSpan="2"></td>
+                    <td className="px-3 py-3 whitespace-nowrap text-blue-700">
+                      ${stateTotals.totalPayouts.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-3" colSpan="3"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -630,7 +631,11 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
         className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white"
       >
         <h2 className="text-2xl font-bold mb-4 text-center">Overall Totals</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <div className="text-center">
+            <p className="text-sm opacity-90">Total Transactions</p>
+            <p className="text-2xl font-bold">{overallTotals.transactionCount}</p>
+          </div>
           <div className="text-center">
             <p className="text-sm opacity-90">Total Loan Amount</p>
             <p className="text-2xl font-bold">${overallTotals.totalLoanAmount.toLocaleString()}</p>
@@ -640,12 +645,12 @@ function StateBasedView({ transactionsByState, user, loanOfficers, referralSourc
             <p className="text-2xl font-bold">{overallTotals.avgRate.toFixed(2)}%</p>
           </div>
           <div className="text-center">
-            <p className="text-sm opacity-90">Total Commission</p>
-            <p className="text-2xl font-bold">${overallTotals.totalCommission.toLocaleString()}</p>
+            <p className="text-sm opacity-90">Total Payouts</p>
+            <p className="text-2xl font-bold">${overallTotals.totalPayouts.toLocaleString()}</p>
           </div>
           <div className="text-center">
-            <p className="text-sm opacity-90">Total Transactions</p>
-            <p className="text-2xl font-bold">{overallTotals.transactionCount}</p>
+            <p className="text-sm opacity-90">Company Profit</p>
+            <p className="text-2xl font-bold">${overallTotals.companyProfit.toLocaleString()}</p>
           </div>
         </div>
       </motion.div>
@@ -683,6 +688,9 @@ function TableView({ transactions, user, loanOfficers, referralSources, lenders,
                 Commission
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                LO Payout
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -693,14 +701,13 @@ function TableView({ transactions, user, loanOfficers, referralSources, lenders,
           <tbody className="bg-white divide-y divide-gray-200">
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan={user?.type === 'admin' ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={user?.type === 'admin' ? 7 : 6} className="px-6 py-8 text-center text-gray-500">
                   No transactions found matching your criteria
                 </td>
               </tr>
             ) : (
               transactions.map((transaction, index) => {
                 const loanOfficer = loanOfficers.find(lo => lo.id === transaction.loanOfficerId);
-                
                 return (
                   <motion.tr
                     key={transaction.id}
@@ -741,21 +748,36 @@ function TableView({ transactions, user, loanOfficers, referralSources, lenders,
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        ${(transaction.loanAmount * transaction.commissionRate / 100).toLocaleString()}
+                        ${(transaction.commissionAmount || 0).toLocaleString()}
                       </div>
                       <div className="text-xs text-gray-500">
                         {transaction.commissionRate}% rate
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        transaction.status === 'Closed' ? 'bg-green-100 text-green-800' :
-                        transaction.status === 'In Process' ? 'bg-yellow-100 text-yellow-800' :
-                        transaction.status === 'Application' ? 'bg-blue-100 text-blue-800' :
-                        transaction.status === 'Underwriting' ? 'bg-purple-100 text-purple-800' :
-                        transaction.status === 'Approved' ? 'bg-indigo-100 text-indigo-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <div className="text-sm font-medium text-blue-600">
+                        ${(transaction.loFinalPayout || 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {transaction.loCommissionPercentage || 0}% + adj.
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          transaction.status === 'Closed'
+                            ? 'bg-green-100 text-green-800'
+                            : transaction.status === 'In Process'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : transaction.status === 'Application'
+                            ? 'bg-blue-100 text-blue-800'
+                            : transaction.status === 'Underwriting'
+                            ? 'bg-purple-100 text-purple-800'
+                            : transaction.status === 'Approved'
+                            ? 'bg-indigo-100 text-indigo-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         {transaction.status}
                       </span>
                     </td>
@@ -818,6 +840,7 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
               transition={{ delay: 0.7 + index * 0.1 }}
               className="bg-white rounded-xl shadow-lg overflow-hidden"
             >
+              {/* Header */}
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div>
                   <div className="flex items-center space-x-2">
@@ -829,14 +852,21 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
                   <p className="text-sm text-gray-600">{transaction.property}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
-                    transaction.status === 'Closed' ? 'bg-green-100 text-green-800' :
-                    transaction.status === 'In Process' ? 'bg-yellow-100 text-yellow-800' :
-                    transaction.status === 'Application' ? 'bg-blue-100 text-blue-800' :
-                    transaction.status === 'Underwriting' ? 'bg-purple-100 text-purple-800' :
-                    transaction.status === 'Approved' ? 'bg-indigo-100 text-indigo-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  <span
+                    className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                      transaction.status === 'Closed'
+                        ? 'bg-green-100 text-green-800'
+                        : transaction.status === 'In Process'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : transaction.status === 'Application'
+                        ? 'bg-blue-100 text-blue-800'
+                        : transaction.status === 'Underwriting'
+                        ? 'bg-purple-100 text-purple-800'
+                        : transaction.status === 'Approved'
+                        ? 'bg-indigo-100 text-indigo-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
                     {transaction.status}
                   </span>
                   <button
@@ -855,9 +885,8 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
                   </button>
                 </div>
               </div>
-              
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Loan Information */}
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Loan Information</h4>
@@ -880,7 +909,7 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
                       </div>
                     </div>
                   </div>
-
+                  
                   {/* Commission Information */}
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Commission Details</h4>
@@ -891,19 +920,23 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-medium text-green-600">${(transaction.loanAmount * transaction.commissionRate / 100).toLocaleString()}</span>
+                        <span className="font-medium text-green-600">${(transaction.commissionAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">LO Commission:</span>
-                        <span className="font-medium">${(transaction.loCommission || 0).toLocaleString()}</span>
+                        <span className="text-gray-600">LO Percentage:</span>
+                        <span className="font-medium">{transaction.loCommissionPercentage || 0}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">LO Final Payout:</span>
+                        <span className="font-medium text-blue-600">${(transaction.loFinalPayout || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Company Profit:</span>
-                        <span className="font-medium">${(transaction.companyProfit || 0).toLocaleString()}</span>
+                        <span className="font-medium text-purple-600">${(transaction.companyProfit || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
-
+                  
                   {/* Partners & Timeline */}
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Partners & Timeline</h4>
@@ -928,8 +961,38 @@ function DetailedView({ transactions, user, loanOfficers, referralSources, lende
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Adjustments */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">LO Adjustments</h4>
+                    <div className="space-y-2 text-sm">
+                      {/* Reimbursements */}
+                      {transaction.loReimbursements && transaction.loReimbursements.length > 0 && (
+                        <div>
+                          <span className="text-green-600 font-medium">Reimbursements:</span>
+                          {transaction.loReimbursements.map((item, idx) => (
+                            <div key={idx} className="text-xs text-gray-600 ml-2">
+                              {item.description}: +${item.amount}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Deductions */}
+                      {transaction.loDeductions && transaction.loDeductions.length > 0 && (
+                        <div>
+                          <span className="text-red-600 font-medium">Deductions:</span>
+                          {transaction.loDeductions.map((item, idx) => (
+                            <div key={idx} className="text-xs text-gray-600 ml-2">
+                              {item.description}: -${item.amount}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
+                
                 {/* Additional Information */}
                 {(transaction.realtor || transaction.realtorCompany || transaction.notes) && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
@@ -984,63 +1047,130 @@ function TransactionDetailModal({ transaction, loanOfficers, referralSources, le
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto"
       >
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Transaction Details</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <SafeIcon icon={FiX} className="text-gray-600" />
-          </button>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white flex justify-between items-center sticky top-0 z-10">
+          <div>
+            <h2 className="text-2xl font-bold">{transaction.clientName}</h2>
+            <div className="flex items-center space-x-4 mt-1">
+              <p className="text-blue-100">{transaction.property}</p>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                transaction.status === 'Closed' ? 'bg-green-500' :
+                transaction.status === 'In Process' ? 'bg-yellow-500' :
+                transaction.status === 'Application' ? 'bg-blue-400' :
+                transaction.status === 'Underwriting' ? 'bg-purple-500' :
+                transaction.status === 'Approved' ? 'bg-indigo-500' : 'bg-gray-500'
+              }`}>
+                {transaction.status}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                onEdit(transaction.id);
+                onClose();
+              }}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg flex items-center space-x-2"
+            >
+              <SafeIcon icon={FiEdit3} />
+              <span>Edit</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
+            >
+              <SafeIcon icon={FiX} />
+            </button>
+          </div>
         </div>
-        
+
         <div className="p-6">
+          {/* Main content grid - Using By State table-like structure */}
+          <div className="overflow-x-auto mb-8 bg-white rounded-lg shadow">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Officer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type/Purpose</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LO Payout</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Closing Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="bg-white">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{transaction.clientName}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{loanOfficer?.name || 'N/A'}</td>
+                  <td className="px-4 py-4 text-sm text-gray-900">
+                    <div className="max-w-[200px] truncate" title={transaction.property}>
+                      {transaction.property}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    ${transaction.loanAmount.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div>{transaction.loanType}</div>
+                    <div className="text-xs text-gray-500">{transaction.purpose}</div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {transaction.rate ? `${transaction.rate}%` : 'N/A'}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                    ${(transaction.commissionAmount || 0).toLocaleString()}
+                    <div className="text-xs text-gray-500">{transaction.commissionRate}%</div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                    ${(transaction.loFinalPayout || 0).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      transaction.status === 'Closed' ? 'bg-green-100 text-green-800' :
+                      transaction.status === 'In Process' ? 'bg-yellow-100 text-yellow-800' :
+                      transaction.status === 'Application' ? 'bg-blue-100 text-blue-800' :
+                      transaction.status === 'Underwriting' ? 'bg-purple-100 text-purple-800' :
+                      transaction.status === 'Approved' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {transaction.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {transaction.closingDate ? format(new Date(transaction.closingDate), 'MM/dd/yyyy') : 'N/A'}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Detailed Information Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left Column */}
             <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Client & Property</h3>
-                <div className="space-y-3">
+              {/* Client & Property Information */}
+              <div className="bg-gray-50 rounded-lg p-6 shadow">
+                <div className="flex items-center mb-4">
+                  <SafeIcon icon={FiHome} className="text-blue-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Client & Property Details</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Client Name</label>
-                    <p className="text-gray-900">{transaction.clientName}</p>
+                    <p className="text-gray-900 font-medium">{transaction.clientName}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Property Address</label>
                     <p className="text-gray-900">{transaction.property}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Status</label>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      transaction.status === 'Closed' ? 'bg-green-100 text-green-800' :
-                      transaction.status === 'In Process' ? 'bg-yellow-100 text-yellow-800' :
-                      transaction.status === 'Application' ? 'bg-blue-100 text-blue-800' :
-                      transaction.status === 'Underwriting' ? 'bg-purple-100 text-purple-800' :
-                      transaction.status === 'Approved' ? 'bg-indigo-100 text-indigo-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {transaction.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Loan Details</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Loan Amount</label>
-                    <p className="text-gray-900 font-medium">${transaction.loanAmount.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Loan Type</label>
-                    <p className="text-gray-900">{transaction.loanType}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Purpose</label>
-                    <p className="text-gray-900">{transaction.purpose}</p>
+                    <label className="text-sm font-medium text-gray-600">Loan Number</label>
+                    <p className="text-gray-900">{transaction.loanNumber || 'N/A'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Interest Rate</label>
@@ -1048,153 +1178,358 @@ function TransactionDetailModal({ transaction, loanOfficers, referralSources, le
                   </div>
                 </div>
               </div>
+
+              {/* Team & Partners */}
+              <div className="bg-gray-50 rounded-lg p-6 shadow">
+                <div className="flex items-center mb-4">
+                  <SafeIcon icon={FiUsers} className="text-purple-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Team & Partners</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Loan Officer:</span>
+                    <span className="font-medium">{loanOfficer?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Referral Source:</span>
+                    <span className="font-medium">{referralSource?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Lender:</span>
+                    <span className="font-medium">{lender?.name || 'N/A'}</span>
+                  </div>
+                  {transaction.realtor && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Realtor:</span>
+                      <span className="font-medium">{transaction.realtor}</span>
+                    </div>
+                  )}
+                  {transaction.realtorCompany && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Realtor Company:</span>
+                      <span className="font-medium">{transaction.realtorCompany}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="bg-gray-50 rounded-lg p-6 shadow">
+                <div className="flex items-center mb-4">
+                  <SafeIcon icon={FiCalendar} className="text-indigo-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Timeline</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Application Date:</span>
+                    <span className="font-medium">
+                      {transaction.applicationDate ? format(new Date(transaction.applicationDate), 'MM/dd/yyyy') : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Closing Date:</span>
+                    <span className="font-medium">
+                      {transaction.closingDate ? format(new Date(transaction.closingDate), 'MM/dd/yyyy') : 'TBD'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Date Paid LO:</span>
+                    <span className="font-medium">
+                      {transaction.datePaidLO ? format(new Date(transaction.datePaidLO), 'MM/dd/yyyy') : 'Pending'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {transaction.notes && (
+                <div className="bg-gray-50 rounded-lg p-6 shadow">
+                  <div className="flex items-center mb-4">
+                    <SafeIcon icon={FiFileText} className="text-gray-600 mr-2" />
+                    <h3 className="text-lg font-semibold text-gray-900">Notes</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{transaction.notes}</p>
+                </div>
+              )}
             </div>
 
             {/* Right Column */}
             <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Commission & Payments</h3>
+              {/* Settlement Information */}
+              {(transaction.settlementCompany || transaction.settlementPOC) && (
+                <div className="bg-gray-50 rounded-lg p-6 shadow">
+                  <div className="flex items-center mb-4">
+                    <SafeIcon icon={FiBuilding} className="text-green-600 mr-2" />
+                    <h3 className="text-lg font-semibold text-gray-900">Settlement Information</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {transaction.settlementCompany && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Settlement Company:</span>
+                        <span className="font-medium">{transaction.settlementCompany}</span>
+                      </div>
+                    )}
+                    {transaction.settlementPOC && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Point of Contact:</span>
+                        <span className="font-medium">{transaction.settlementPOC}</span>
+                      </div>
+                    )}
+                    {transaction.settlementEmail && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Email:</span>
+                        <a href={`mailto:${transaction.settlementEmail}`} className="text-blue-600 hover:text-blue-800">
+                          {transaction.settlementEmail}
+                        </a>
+                      </div>
+                    )}
+                    {transaction.settlementPhone && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Phone:</span>
+                        <a href={`tel:${transaction.settlementPhone}`} className="text-blue-600 hover:text-blue-800">
+                          {transaction.settlementPhone}
+                        </a>
+                      </div>
+                    )}
+                    {transaction.settlementAmount && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Amount Received:</span>
+                        <span className="font-medium text-green-600">${transaction.settlementAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {transaction.settlementDate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Payment Date:</span>
+                        <span className="font-medium">{format(new Date(transaction.settlementDate), 'MM/dd/yyyy')}</span>
+                      </div>
+                    )}
+                    {transaction.settlementMethod && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Payment Method:</span>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                          {transaction.settlementMethod}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Commission Breakdown */}
+              <div className="bg-gray-50 rounded-lg p-6 shadow">
+                <div className="flex items-center mb-4">
+                  <SafeIcon icon={FiDollarSign} className="text-green-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Commission Breakdown</h3>
+                </div>
                 <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Commission Rate</label>
-                    <p className="text-gray-900">{transaction.commissionRate}%</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Broker Compensation:</span>
+                    <span className="font-medium text-green-600">${transaction.brokerCompensation?.toLocaleString()}</span>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Total Commission</label>
-                    <p className="text-gray-900 font-medium text-green-600">${(transaction.loanAmount * transaction.commissionRate / 100).toLocaleString()}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">LO Base Commission ({transaction.loCommissionPercentage}%):</span>
+                    <span className="font-medium">
+                      ${((transaction.brokerCompensation * (transaction.loCommissionPercentage / 100)) || 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">LO Commission</label>
-                    <p className="text-gray-900">${(transaction.loCommission || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Company Profit</label>
-                    <p className="text-gray-900">${(transaction.companyProfit || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Date Paid LO</label>
-                    <p className="text-gray-900">{transaction.datePaidLO || 'Not paid yet'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Settlement Company</label>
-                    <p className="text-gray-900">{transaction.settlementAgent || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Date We Got Paid</label>
-                    <p className="text-gray-900">{transaction.dateWePaid || 'Not paid yet'}</p>
+                  
+                  {/* Reimbursements */}
+                  {transaction.loReimbursements && transaction.loReimbursements.length > 0 && (
+                    <>
+                      <div className="pt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-700">Reimbursements:</span>
+                      </div>
+                      {transaction.loReimbursements.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center pl-4">
+                          <span className="text-gray-600">{item.description}:</span>
+                          <span className="font-medium text-green-600">+${parseFloat(item.amount).toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center border-t pt-1 border-gray-200">
+                        <span className="text-gray-600">Total Reimbursements:</span>
+                        <span className="font-medium text-green-600">
+                          +${transaction.loReimbursements.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Deductions */}
+                  {transaction.loDeductions && transaction.loDeductions.length > 0 && (
+                    <>
+                      <div className="pt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-700">Deductions:</span>
+                      </div>
+                      {transaction.loDeductions.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center pl-4">
+                          <span className="text-gray-600">{item.description}:</span>
+                          <span className="font-medium text-red-600">-${parseFloat(item.amount).toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center border-t pt-1 border-gray-200">
+                        <span className="text-gray-600">Total Deductions:</span>
+                        <span className="font-medium text-red-600">
+                          -${transaction.loDeductions.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="border-t pt-3 mt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-900 font-semibold">LO Final Payout:</span>
+                      <span className="font-bold text-blue-600">${transaction.loFinalPayout?.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Partners</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Loan Officer</label>
-                    <p className="text-gray-900">{loanOfficer?.name}</p>
+              {/* Discrepancy Information */}
+              {Math.abs(
+                (transaction.settlementAmount || 0) - (transaction.brokerCompensation || 0)
+              ) > 0.01 && (
+                <div className="bg-gray-50 rounded-lg p-6 shadow">
+                  <div className="flex items-center mb-4">
+                    <SafeIcon 
+                      icon={(transaction.settlementAmount || 0) > (transaction.brokerCompensation || 0) ? FiCheckCircle : FiAlertCircle} 
+                      className={(transaction.settlementAmount || 0) > (transaction.brokerCompensation || 0) ? 'text-green-600' : 'text-red-600'} 
+                      mr-2 
+                    />
+                    <h3 className="text-lg font-semibold text-gray-900">Payment Discrepancy</h3>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Referral Source</label>
-                    <p className="text-gray-900">{referralSource?.name || 'N/A'}</p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Expected Amount:</span>
+                      <span className="font-medium">${transaction.brokerCompensation?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Amount Received:</span>
+                      <span className="font-medium">${transaction.settlementAmount?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-2">
+                      <span className="text-gray-600">Discrepancy:</span>
+                      <span className={`font-bold ${(transaction.settlementAmount || 0) > (transaction.brokerCompensation || 0) ? 'text-green-600' : 'text-red-600'}`}>
+                        {(transaction.settlementAmount || 0) > (transaction.brokerCompensation || 0) ? '+' : ''}
+                        ${Math.abs((transaction.settlementAmount || 0) - (transaction.brokerCompensation || 0)).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Lender</label>
-                    <p className="text-gray-900">{lender?.name || 'N/A'}</p>
+
+                  {/* Discrepancy Allocations */}
+                  {transaction.discrepancyAllocations && transaction.discrepancyAllocations.length > 0 && (
+                    <>
+                      <div className="pt-3 mt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-700">Discrepancy Allocations:</span>
+                      </div>
+                      {transaction.discrepancyAllocations.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center pl-4">
+                          <span className="text-gray-600">
+                            {item.description} ({item.allocationType === 'loan_officer' ? 'LO' : 
+                                              item.allocationType === 'company' ? 'Company' : 'Expense'}):
+                          </span>
+                          <span className="font-medium">
+                            ${parseFloat(item.amount).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Audit Checklist */}
+              {transaction.auditChecklist && (
+                <div className="bg-gray-50 rounded-lg p-6 shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <SafeIcon icon={FiClipboard} className="text-blue-600 mr-2" />
+                      <h3 className="text-lg font-semibold text-gray-900">Audit Checklist</h3>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">Completion</div>
+                      <div className="text-xl font-bold text-blue-600">
+                        {Math.round(
+                          (Object.values(transaction.auditChecklist).filter(Boolean).length / 
+                          Object.values(transaction.auditChecklist).length) * 100
+                        )}%
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Closing Date</label>
-                    <p className="text-gray-900">{transaction.closingDate ? format(new Date(transaction.closingDate), 'MM/dd/yyyy') : 'N/A'}</p>
+                  <div className="space-y-2">
+                    {Object.entries(transaction.auditChecklist).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between">
+                        <span className="text-gray-600 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </span>
+                        <SafeIcon 
+                          icon={value ? FiCheckCircle : FiClock} 
+                          className={value ? 'text-green-600' : 'text-gray-400'} 
+                        />
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Company Profit Summary */}
+          <div className="mt-8 bg-blue-50 p-6 rounded-lg shadow border border-blue-100">
+            <h3 className="text-lg font-semibold text-blue-900 mb-4 text-center">Final Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">Total Received</div>
+                <div className="text-xl font-bold text-gray-900">
+                  ${(transaction.settlementAmount || transaction.brokerCompensation || 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">LO Payout</div>
+                <div className="text-xl font-bold text-blue-600">
+                  ${(transaction.loFinalPayout || 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">Realtor Partner</div>
+                <div className="text-xl font-bold text-purple-600">
+                  ${(transaction.realtorPartnerCommission || 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">Company Profit</div>
+                <div className="text-xl font-bold text-green-600">
+                  ${(transaction.companyProfit || 0).toLocaleString()}
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Additional Information */}
-          {(transaction.realtor || transaction.realtorCompany || transaction.notes) && (
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(transaction.realtor || transaction.realtorCompany) && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Realtor Information</h4>
-                    <div className="space-y-2">
-                      {transaction.realtor && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Realtor</label>
-                          <p className="text-gray-900">{transaction.realtor}</p>
-                        </div>
-                      )}
-                      {transaction.realtorCompany && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-600">Company</label>
-                          <p className="text-gray-900">{transaction.realtorCompany}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {transaction.notes && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Notes</h4>
-                    <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">
-                      {transaction.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-          >
-            Close
-          </button>
-          <button
-            onClick={() => {
-              onEdit(transaction.id);
-              onClose();
-            }}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Edit Transaction
-          </button>
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            Last updated: {new Date().toLocaleDateString()}
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => {
+                onEdit(transaction.id);
+                onClose();
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Edit Transaction
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>
-  );
-}
-
-function StatCard({ title, value, icon, color, delay }) {
-  const colorClasses = {
-    green: 'from-green-500 to-emerald-600',
-    yellow: 'from-yellow-500 to-orange-600',
-    blue: 'from-blue-500 to-indigo-600',
-    purple: 'from-purple-500 to-pink-600'
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
-    >
-      <div className="flex items-center">
-        <div className={`p-3 rounded-lg bg-gradient-to-r ${colorClasses[color]}`}>
-          <SafeIcon icon={icon} className="text-white text-xl" />
-        </div>
-        <div className="ml-4">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-        </div>
-      </div>
-    </motion.div>
   );
 }
 

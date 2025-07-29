@@ -15,6 +15,7 @@ function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     // Demo login logic
     const userData = {
       email,
@@ -22,6 +23,7 @@ function Login() {
       name: userType === 'admin' ? 'Admin User' : 'Loan Officer',
       id: userType === 'admin' ? 'admin' : 1
     };
+    
     login(userData);
   };
 
@@ -82,10 +84,7 @@ function Login() {
                 Email
               </label>
               <div className="relative">
-                <SafeIcon
-                  icon={FiUser}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                />
+                <SafeIcon icon={FiUser} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="email"
                   value={email}
@@ -102,10 +101,7 @@ function Login() {
                 Password
               </label>
               <div className="relative">
-                <SafeIcon
-                  icon={FiLock}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                />
+                <SafeIcon icon={FiLock} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
