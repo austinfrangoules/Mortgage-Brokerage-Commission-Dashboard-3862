@@ -129,9 +129,7 @@ function PermissionsModal({ user, onSave, onClose }) {
   };
 
   // Combine permissions based on user type
-  const allPermissions = user.type === 'admin' 
-    ? { ...permissionCategories, ...adminPermissions }
-    : permissionCategories;
+  const allPermissions = user.type === 'admin' ? { ...permissionCategories, ...adminPermissions } : permissionCategories;
 
   useEffect(() => {
     setPermissions(user.data.permissions || {});
@@ -140,10 +138,7 @@ function PermissionsModal({ user, onSave, onClose }) {
   const handlePermissionChange = (category, permission, value) => {
     setPermissions(prev => ({
       ...prev,
-      [category]: {
-        ...prev[category],
-        [permission]: value
-      }
+      [category]: { ...prev[category], [permission]: value }
     }));
   };
 
@@ -151,10 +146,7 @@ function PermissionsModal({ user, onSave, onClose }) {
     const categoryPerms = allPermissions[category].permissions;
     setPermissions(prev => ({
       ...prev,
-      [category]: Object.keys(categoryPerms).reduce((acc, perm) => ({
-        ...acc,
-        [perm]: enabled
-      }), {})
+      [category]: Object.keys(categoryPerms).reduce((acc, perm) => ({ ...acc, [perm]: enabled }), {})
     }));
   };
 
@@ -227,15 +219,13 @@ function PermissionsModal({ user, onSave, onClose }) {
                   const isFullyEnabled = isCategoryFullyEnabled(key);
                   const isPartiallyEnabled = isCategoryPartiallyEnabled(key);
                   const colors = getColorClasses(category.color);
-                  
+
                   return (
                     <button
                       key={key}
                       onClick={() => setActiveCategory(key)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                        activeCategory === key
-                          ? `${colors.bg} ${colors.text} ${colors.border} border`
-                          : 'text-gray-700 hover:bg-gray-100'
+                        activeCategory === key ? `${colors.bg} ${colors.text} ${colors.border} border` : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
                       <div className="flex items-center space-x-2">
@@ -268,8 +258,8 @@ function PermissionsModal({ user, onSave, onClose }) {
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-3">
                       <div className={`p-2 rounded-lg ${getColorClasses(allPermissions[activeCategory].color).bg}`}>
-                        <SafeIcon 
-                          icon={allPermissions[activeCategory].icon} 
+                        <SafeIcon
+                          icon={allPermissions[activeCategory].icon}
                           className={`text-xl ${getColorClasses(allPermissions[activeCategory].color).text}`}
                         />
                       </div>
@@ -282,7 +272,7 @@ function PermissionsModal({ user, onSave, onClose }) {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Category Toggle */}
                     <div className="flex items-center space-x-2">
                       <button
@@ -304,38 +294,24 @@ function PermissionsModal({ user, onSave, onClose }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Object.entries(allPermissions[activeCategory].permissions).map(([permKey, permLabel]) => {
                       const isEnabled = permissions[activeCategory]?.[permKey] || false;
-                      
+
                       return (
                         <div
                           key={permKey}
                           className={`border rounded-lg p-4 transition-colors ${
-                            isEnabled 
-                              ? `${getColorClasses(allPermissions[activeCategory].color).bg} ${getColorClasses(allPermissions[activeCategory].color).border} border-2`
-                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                            isEnabled ? `${getColorClasses(allPermissions[activeCategory].color).bg} ${getColorClasses(allPermissions[activeCategory].color).border} border-2` : 'border-gray-200 bg-white hover:bg-gray-50'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div className={`p-2 rounded-lg ${
-                                isEnabled 
-                                  ? `${getColorClasses(allPermissions[activeCategory].color).bg}`
-                                  : 'bg-gray-100'
-                              }`}>
-                                <SafeIcon 
-                                  icon={getPermissionIcon(permKey)} 
-                                  className={`text-sm ${
-                                    isEnabled 
-                                      ? getColorClasses(allPermissions[activeCategory].color).text
-                                      : 'text-gray-500'
-                                  }`}
+                              <div className={`p-2 rounded-lg ${isEnabled ? `${getColorClasses(allPermissions[activeCategory].color).bg}` : 'bg-gray-100'}`}>
+                                <SafeIcon
+                                  icon={getPermissionIcon(permKey)}
+                                  className={`text-sm ${isEnabled ? getColorClasses(allPermissions[activeCategory].color).text : 'text-gray-500'}`}
                                 />
                               </div>
                               <div>
-                                <h4 className={`font-medium ${
-                                  isEnabled 
-                                    ? getColorClasses(allPermissions[activeCategory].color).text
-                                    : 'text-gray-900'
-                                }`}>
+                                <h4 className={`font-medium ${isEnabled ? getColorClasses(allPermissions[activeCategory].color).text : 'text-gray-900'}`}>
                                   {permLabel}
                                 </h4>
                                 <p className="text-xs text-gray-500 mt-1">
@@ -343,7 +319,6 @@ function PermissionsModal({ user, onSave, onClose }) {
                                 </p>
                               </div>
                             </div>
-                            
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input
                                 type="checkbox"
@@ -352,9 +327,7 @@ function PermissionsModal({ user, onSave, onClose }) {
                                 className="sr-only peer"
                               />
                               <div className={`w-11 h-6 rounded-full peer transition-colors ${
-                                isEnabled 
-                                  ? `bg-${allPermissions[activeCategory].color}-500`
-                                  : 'bg-gray-200'
+                                isEnabled ? `bg-${allPermissions[activeCategory].color}-500` : 'bg-gray-200'
                               } peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-${allPermissions[activeCategory].color}-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all`}></div>
                             </label>
                           </div>
@@ -383,11 +356,8 @@ function PermissionsModal({ user, onSave, onClose }) {
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
           <div className="text-sm text-gray-600">
-            {Object.values(permissions).reduce((total, categoryPerms) => 
-              total + Object.values(categoryPerms).filter(Boolean).length, 0
-            )} permissions enabled
+            {Object.values(permissions).reduce((total, categoryPerms) => total + Object.values(categoryPerms).filter(Boolean).length, 0)} permissions enabled
           </div>
-          
           <div className="flex space-x-3">
             <button
               onClick={onClose}
@@ -419,7 +389,6 @@ function getPermissionIcon(permKey) {
     process: FiSettings,
     schedule: FiSettings
   };
-  
   return iconMap[permKey] || FiShield;
 }
 
@@ -433,7 +402,6 @@ function getPermissionDescription(permKey, permLabel) {
     process: 'Can execute and complete actions',
     schedule: 'Can set up automated tasks'
   };
-  
   return descriptions[permKey] || `Allows access to ${permLabel.toLowerCase()}`;
 }
 

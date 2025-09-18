@@ -3,24 +3,30 @@ import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SafeIcon from '../common/SafeIcon';
+import InterestRateSidebar from './InterestRateSidebar';
+import NotificationCenter from './NotificationCenter';
+import NotificationBadge from './NotificationBadge';
+import { useNotifications } from '../hooks/useNotifications';
 import * as FiIcons from 'react-icons/fi';
 import * as BiIcons from 'react-icons/bi';
 import * as AiIcons from 'react-icons/ai';
 import * as HiIcons from 'react-icons/hi';
 import * as RiIcons from 'react-icons/ri';
 
-const { FiHome, FiLogOut, FiMenu, FiX, FiChevronDown, FiUsers, FiSettings, FiPlus, FiBell, FiUser } = FiIcons;
+const { 
+  FiHome, FiLogOut, FiMenu, FiX, FiChevronDown, FiUsers, FiSettings, 
+  FiPlus, FiBell, FiUser, FiPercent, FiShield, FiUserCheck 
+} = FiIcons;
 
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { notifications } = useNotifications();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notifications] = useState([
-    { id: 1, message: 'New transaction submitted by John Smith', type: 'transaction', time: '5 min ago' },
-    { id: 2, message: 'Lender directory update pending approval', type: 'approval', time: '1 hour ago' }
-  ]);
+  const [rateSidebarOpen, setRateSidebarOpen] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   // Navigation items based on user role
   const navigation = [
@@ -55,6 +61,14 @@ function Layout({ children }) {
       bgColor: 'bg-purple-100'
     },
     {
+      name: 'User Management',
+      href: '/user-management',
+      icon: FiUserCheck,
+      color: 'text-indigo-500',
+      bgColor: 'bg-indigo-100',
+      adminOnly: true
+    },
+    {
       name: 'Company Roster',
       href: '/loan-officers',
       icon: FiUsers,
@@ -81,6 +95,13 @@ function Layout({ children }) {
       icon: BiIcons.BiBookContent,
       color: 'text-rose-500',
       bgColor: 'bg-rose-100'
+    },
+    {
+      name: 'Compliance',
+      href: '/compliance',
+      icon: FiShield,
+      color: 'text-red-500',
+      bgColor: 'bg-red-100'
     },
     {
       name: 'My Profile',
@@ -183,19 +204,17 @@ function Layout({ children }) {
               </div>
 
               <div className="flex items-center space-x-4">
-                {/* Notifications for admin */}
-                {user?.type === 'admin' && (
-                  <div className="relative">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-                      <SafeIcon icon={FiBell} className="text-xl" />
-                      {notifications.length > 0 && (
-                        <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-xs text-white">
-                          {notifications.length}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                )}
+                {/* Interest Rate Button */}
+                <button
+                  onClick={() => setRateSidebarOpen(true)}
+                  className="p-2 text-gray-400 hover:text-gray-600 relative"
+                  title="Interest Rates & Refinance Opportunities"
+                >
+                  <SafeIcon icon={FiPercent} className="text-xl" />
+                </button>
+
+                {/* Notifications */}
+                <NotificationBadge onClick={() => setNotificationCenterOpen(true)} />
 
                 {/* User menu */}
                 <div className="relative">
@@ -257,6 +276,18 @@ function Layout({ children }) {
         {/* Page content */}
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      {/* Interest Rate Sidebar */}
+      <InterestRateSidebar
+        isOpen={rateSidebarOpen}
+        onClose={() => setRateSidebarOpen(false)}
+      />
+
+      {/* Notification Center */}
+      <NotificationCenter
+        isOpen={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+      />
     </div>
   );
 }

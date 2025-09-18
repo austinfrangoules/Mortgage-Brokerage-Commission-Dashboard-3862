@@ -246,10 +246,37 @@ export function DataProvider({ children }) {
     }
   ]);
 
+  // Interest rates tracking
+  const [interestRates, setInterestRates] = useState([]);
+
+  // Rate alerts
+  const [rateAlerts, setRateAlerts] = useState([]);
+
+  // Compliance records tracking
+  const [complianceRecords, setComplianceRecords] = useState([]);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+
+  // Notification preferences
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    transactions: { email: true, push: true, sms: false },
+    compliance: { email: true, push: true, sms: true },
+    payments: { email: true, push: true },
+    reminders: { email: true, push: true, sms: false },
+    rates: { email: true, push: false },
+    system: { email: false, push: true }
+  });
+
   useEffect(() => {
     const savedTransactions = localStorage.getItem('mortgage_transactions');
     const savedRealtorContacts = localStorage.getItem('realtor_contacts');
     const savedSettlementContacts = localStorage.getItem('settlement_contacts');
+    const savedInterestRates = localStorage.getItem('interest_rates');
+    const savedRateAlerts = localStorage.getItem('rate_alerts');
+    const savedComplianceRecords = localStorage.getItem('compliance_records');
+    const savedNotifications = localStorage.getItem('notifications');
+    const savedNotificationPreferences = localStorage.getItem('notification_preferences');
 
     if (savedTransactions) {
       setTransactions(JSON.parse(savedTransactions));
@@ -334,7 +361,7 @@ export function DataProvider({ children }) {
           applicationDate: '2024-02-01',
           closingDate: null,
           property: '456 Pine Avenue, Boulder, CO',
-          rate: 6.50,
+          rate: 7.25,
           referralSourceId: 3,
           lenderId: 1,
           realtor: 'Mark Johnson',
@@ -404,6 +431,67 @@ export function DataProvider({ children }) {
             arivePostClosingAudit: false
           },
           notes: 'Military veteran, VA loan. John Smith is our LO and realtor partner'
+        },
+        // Add some older transactions for refinance opportunities
+        {
+          id: 4,
+          clientName: 'David & Mary Wilson',
+          loanOfficerId: 1,
+          loanAmount: 400000,
+          loanNumber: 'LN-2023-004567',
+          loanType: 'Conventional',
+          purpose: 'Purchase',
+          brokerCompensation: 10000,
+          settlementAmount: 10000,
+          loCommissionPercentage: 60,
+          loReimbursements: [],
+          loDeductions: [],
+          discrepancyAllocations: [],
+          loFinalPayout: 6000,
+          companyProfit: 4000,
+          realtorPartnerCommission: 0,
+          isRealtorPartner: false,
+          realtorPartnerId: null,
+          status: 'Closed',
+          applicationDate: '2023-06-15',
+          closingDate: '2023-07-30',
+          property: '321 Elm Street, Denver, CO',
+          rate: 7.50, // Higher rate - good refinance candidate
+          referralSourceId: 1,
+          lenderId: 1,
+          realtor: 'Jane Wilson',
+          realtorCompany: 'Colorado Homes',
+          notes: 'Great clients, may be interested in refinancing when rates drop'
+        },
+        {
+          id: 5,
+          clientName: 'Thomas & Sarah Brown',
+          loanOfficerId: 2,
+          loanAmount: 600000,
+          loanNumber: 'LN-2023-005678',
+          loanType: 'Jumbo',
+          purpose: 'Purchase',
+          brokerCompensation: 18000,
+          settlementAmount: 18000,
+          loCommissionPercentage: 65,
+          loReimbursements: [],
+          loDeductions: [],
+          discrepancyAllocations: [],
+          loFinalPayout: 11700,
+          companyProfit: 6300,
+          realtorPartnerCommission: 0,
+          isRealtorPartner: false,
+          realtorPartnerId: null,
+          status: 'Closed',
+          applicationDate: '2023-08-01',
+          closingDate: '2023-09-15',
+          property: '456 Highland Drive, Boulder, CO',
+          rate: 8.25, // High rate - excellent refinance candidate
+          referralSourceId: 2,
+          lenderId: 2,
+          realtor: 'Mark Johnson',
+          realtorCompany: 'Boulder Realty',
+          notes: 'High-net-worth clients, very satisfied with service'
         }
       ];
       setTransactions(sampleTransactions);
@@ -525,6 +613,217 @@ export function DataProvider({ children }) {
       ];
       setSettlementContacts(sampleSettlementContacts);
     }
+
+    if (savedInterestRates) {
+      setInterestRates(JSON.parse(savedInterestRates));
+    } else {
+      // Initialize with some sample rate data
+      const sampleRates = [
+        {
+          id: 1,
+          date: '2024-01-15',
+          conventional30: 7.12,
+          conventional15: 6.65,
+          fha30: 7.25,
+          va30: 7.00,
+          jumbo30: 7.35
+        },
+        {
+          id: 2,
+          date: '2024-01-16',
+          conventional30: 7.00,
+          conventional15: 6.50,
+          fha30: 7.15,
+          va30: 6.85,
+          jumbo30: 7.25
+        },
+        {
+          id: 3,
+          date: new Date().toISOString().split('T')[0], // Today
+          conventional30: 6.75,
+          conventional15: 6.25,
+          fha30: 6.90,
+          va30: 6.60,
+          jumbo30: 7.00
+        }
+      ];
+      setInterestRates(sampleRates);
+    }
+
+    if (savedRateAlerts) {
+      setRateAlerts(JSON.parse(savedRateAlerts));
+    } else {
+      // Initialize with sample alerts
+      const sampleAlerts = [
+        {
+          id: 1,
+          loanType: 'Conventional',
+          targetRate: 6.50,
+          description: 'Alert for refinance campaign',
+          isActive: true,
+          createdBy: 'Admin User',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          loanType: 'VA',
+          targetRate: 6.25,
+          description: 'VA loan opportunities',
+          isActive: true,
+          createdBy: 'Admin User',
+          createdAt: new Date().toISOString()
+        }
+      ];
+      setRateAlerts(sampleAlerts);
+    }
+
+    if (savedComplianceRecords) {
+      setComplianceRecords(JSON.parse(savedComplianceRecords));
+    } else {
+      // Initialize with sample compliance records
+      const sampleComplianceRecords = [
+        {
+          id: 1,
+          loanOfficerId: 1,
+          type: 'license',
+          state: 'CO',
+          description: 'Colorado Mortgage License',
+          issueDate: '2023-01-15',
+          expirationDate: '2025-01-15',
+          reminderDays: [60, 30, 7],
+          isCompleted: false,
+          notes: 'Primary license for Colorado operations'
+        },
+        {
+          id: 2,
+          loanOfficerId: 1,
+          type: 'aml',
+          description: 'AML Training Certification',
+          issueDate: '2024-01-01',
+          expirationDate: '2025-01-01',
+          reminderDays: [60, 30, 7],
+          isCompleted: true,
+          notes: 'Annual AML training completed'
+        },
+        {
+          id: 3,
+          loanOfficerId: 2,
+          type: 'ce',
+          description: 'Continuing Education Requirements',
+          issueDate: '2024-01-01',
+          expirationDate: '2024-12-31',
+          reminderDays: [90, 60, 30],
+          ceHoursRequired: 20,
+          ceHoursCompleted: 15,
+          isCompleted: false,
+          notes: '5 hours remaining for 2024'
+        },
+        {
+          id: 4,
+          loanOfficerId: 3,
+          type: 'nmls',
+          description: 'NMLS Quarterly Reporting',
+          issueDate: '2024-07-01',
+          expirationDate: '2024-09-30',
+          reminderDays: [14, 3, 1],
+          isCompleted: false,
+          notes: 'Q3 2024 NMLS reporting due'
+        },
+        {
+          id: 5,
+          loanOfficerId: 2,
+          type: 'license',
+          state: 'UT',
+          description: 'Utah Mortgage License',
+          issueDate: '2023-06-01',
+          expirationDate: '2024-06-01',
+          reminderDays: [60, 30, 7],
+          isCompleted: false,
+          notes: 'Utah license renewal needed - OVERDUE'
+        }
+      ];
+      setComplianceRecords(sampleComplianceRecords);
+    }
+
+    if (savedNotifications) {
+      setNotifications(JSON.parse(savedNotifications));
+    } else {
+      // Initialize with sample notifications
+      const sampleNotifications = [
+        {
+          id: 1,
+          userId: 1,
+          isGlobal: false,
+          type: 'compliance',
+          priority: 'high',
+          title: 'License Renewal Due Soon',
+          message: 'Your Colorado Mortgage License expires in 30 days. Please begin the renewal process.',
+          actionUrl: '/compliance',
+          metadata: {
+            recordId: 1,
+            type: 'license',
+            daysUntil: 30
+          },
+          isRead: false,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          userId: null,
+          isGlobal: true,
+          type: 'system',
+          priority: 'normal',
+          title: 'System Maintenance Scheduled',
+          message: 'System maintenance is scheduled for this weekend from 2 AM to 4 AM.',
+          actionUrl: null,
+          metadata: {
+            maintenanceDate: '2024-01-20',
+            duration: '2 hours'
+          },
+          isRead: false,
+          createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1 hour ago
+        },
+        {
+          id: 3,
+          userId: 2,
+          isGlobal: false,
+          type: 'transaction',
+          priority: 'normal',
+          title: 'Transaction Status Updated',
+          message: 'Jennifer Martinez transaction has been updated to "In Process"',
+          actionUrl: '/transactions/edit/2',
+          metadata: {
+            transactionId: 2,
+            clientName: 'Jennifer Martinez',
+            newStatus: 'In Process'
+          },
+          isRead: true,
+          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
+        },
+        {
+          id: 4,
+          userId: 1,
+          isGlobal: false,
+          type: 'payment',
+          priority: 'normal',
+          title: 'Commission Payment Processed',
+          message: 'Your commission payment of $6,901 has been processed for the Anderson transaction.',
+          actionUrl: '/my-payments',
+          metadata: {
+            amount: 6901,
+            transactionId: 1,
+            clientName: 'Robert & Lisa Anderson'
+          },
+          isRead: false,
+          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 1 day ago
+        }
+      ];
+      setNotifications(sampleNotifications);
+    }
+
+    if (savedNotificationPreferences) {
+      setNotificationPreferences(JSON.parse(savedNotificationPreferences));
+    }
   }, []);
 
   useEffect(() => {
@@ -539,6 +838,26 @@ export function DataProvider({ children }) {
     localStorage.setItem('settlement_contacts', JSON.stringify(settlementContacts));
   }, [settlementContacts]);
 
+  useEffect(() => {
+    localStorage.setItem('interest_rates', JSON.stringify(interestRates));
+  }, [interestRates]);
+
+  useEffect(() => {
+    localStorage.setItem('rate_alerts', JSON.stringify(rateAlerts));
+  }, [rateAlerts]);
+
+  useEffect(() => {
+    localStorage.setItem('compliance_records', JSON.stringify(complianceRecords));
+  }, [complianceRecords]);
+
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('notification_preferences', JSON.stringify(notificationPreferences));
+  }, [notificationPreferences]);
+
   const addTransaction = (transaction) => {
     const newTransaction = {
       ...transaction,
@@ -551,12 +870,18 @@ export function DataProvider({ children }) {
   };
 
   const updateTransaction = (id, updatedTransaction) => {
-    setTransactions(prev => prev.map(t => t.id === parseInt(id) ? {
-      ...updatedTransaction,
-      id: parseInt(id),
-      loFinalPayout: calculateLOFinalPayout(updatedTransaction),
-      companyProfit: calculateCompanyProfit(updatedTransaction)
-    } : t));
+    setTransactions(prev =>
+      prev.map(t =>
+        t.id === parseInt(id)
+          ? {
+              ...updatedTransaction,
+              id: parseInt(id),
+              loFinalPayout: calculateLOFinalPayout(updatedTransaction),
+              companyProfit: calculateCompanyProfit(updatedTransaction)
+            }
+          : t
+      )
+    );
   };
 
   const deleteTransaction = (id) => {
@@ -618,7 +943,9 @@ export function DataProvider({ children }) {
   };
 
   const updateRealtorContact = (id, updatedContact) => {
-    setRealtorContacts(prev => prev.map(c => c.id === id ? { ...updatedContact, id } : c));
+    setRealtorContacts(prev =>
+      prev.map(c => (c.id === id ? { ...updatedContact, id } : c))
+    );
   };
 
   const deleteRealtorContact = (id) => {
@@ -638,7 +965,9 @@ export function DataProvider({ children }) {
   };
 
   const updateSettlementContact = (id, updatedContact) => {
-    setSettlementContacts(prev => prev.map(c => c.id === id ? { ...updatedContact, id } : c));
+    setSettlementContacts(prev =>
+      prev.map(c => (c.id === id ? { ...updatedContact, id } : c))
+    );
   };
 
   const deleteSettlementContact = (id) => {
@@ -667,7 +996,6 @@ export function DataProvider({ children }) {
     if (!query || query.length < 2) return [];
 
     const lowerQuery = query.toLowerCase();
-
     return settlementContacts
       .filter(contact => contact.name.toLowerCase().includes(lowerQuery))
       .slice(0, 5);
@@ -680,7 +1008,7 @@ export function DataProvider({ children }) {
   };
 
   const updateGoal = (id, updatedGoal) => {
-    setGoals(prev => prev.map(g => g.id === id ? { ...updatedGoal, id } : g));
+    setGoals(prev => prev.map(g => (g.id === id ? { ...updatedGoal, id } : g)));
   };
 
   const deleteGoal = (id) => {
@@ -694,7 +1022,7 @@ export function DataProvider({ children }) {
   };
 
   const updateLender = (id, updatedLender) => {
-    setLenders(prev => prev.map(l => l.id === id ? { ...updatedLender, id } : l));
+    setLenders(prev => prev.map(l => (l.id === id ? { ...updatedLender, id } : l)));
   };
 
   const deleteLender = (id) => {
@@ -708,7 +1036,7 @@ export function DataProvider({ children }) {
   };
 
   const updateLoanOfficer = (id, updatedOfficer) => {
-    setLoanOfficers(prev => prev.map(o => o.id === id ? { ...updatedOfficer, id } : o));
+    setLoanOfficers(prev => prev.map(o => (o.id === id ? { ...updatedOfficer, id } : o)));
   };
 
   const deleteLoanOfficer = (id) => {
@@ -722,11 +1050,240 @@ export function DataProvider({ children }) {
   };
 
   const updateAdminUser = (id, updatedAdmin) => {
-    setAdminUsers(prev => prev.map(a => a.id === id ? { ...updatedAdmin, id } : a));
+    setAdminUsers(prev => prev.map(a => (a.id === id ? { ...updatedAdmin, id } : a)));
   };
 
   const deleteAdminUser = (id) => {
     setAdminUsers(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Interest rate management
+  const addInterestRate = (rateData) => {
+    const newRate = { ...rateData, id: Date.now() };
+    setInterestRates(prev => [...prev, newRate]);
+  };
+
+  const updateInterestRate = (id, updatedRate) => {
+    setInterestRates(prev => prev.map(r => (r.id === id ? { ...updatedRate, id } : r)));
+  };
+
+  const deleteInterestRate = (id) => {
+    setInterestRates(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Rate alert management
+  const addRateAlert = (alertData) => {
+    const newAlert = { ...alertData, id: Date.now() };
+    setRateAlerts(prev => [...prev, newAlert]);
+  };
+
+  const updateRateAlert = (id, updatedAlert) => {
+    setRateAlerts(prev => prev.map(a => (a.id === id ? { ...updatedAlert, id } : a)));
+  };
+
+  const deleteRateAlert = (id) => {
+    setRateAlerts(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Compliance management
+  const addComplianceRecord = (recordData) => {
+    const newRecord = { ...recordData, id: Date.now() };
+    setComplianceRecords(prev => [...prev, newRecord]);
+  };
+
+  const updateComplianceRecord = (id, updatedRecord) => {
+    setComplianceRecords(prev => prev.map(r => (r.id === id ? { ...updatedRecord, id } : r)));
+  };
+
+  const deleteComplianceRecord = (id) => {
+    setComplianceRecords(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Notification management
+  const addNotification = (notification) => {
+    const newNotification = { ...notification, id: Date.now() };
+    setNotifications(prev => [newNotification, ...prev]);
+    return newNotification;
+  };
+
+  const markNotificationAsRead = (id) => {
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === id ? { ...notification, isRead: true } : notification
+      )
+    );
+  };
+
+  const markAllNotificationsAsRead = (userId) => {
+    setNotifications(prev =>
+      prev.map(notification => {
+        if (userId && notification.userId !== userId && !notification.isGlobal) {
+          return notification;
+        }
+        return { ...notification, isRead: true };
+      })
+    );
+  };
+
+  const deleteNotification = (id) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  };
+
+  const clearAllNotifications = (userId) => {
+    if (userId) {
+      setNotifications(prev =>
+        prev.filter(notification => 
+          notification.userId !== userId && !notification.isGlobal
+        )
+      );
+    } else {
+      setNotifications([]);
+    }
+  };
+
+  const updateNotificationPreferences = (preferences) => {
+    setNotificationPreferences(preferences);
+  };
+
+  // Notification check functions
+  const checkComplianceNotifications = () => {
+    const today = new Date();
+    
+    complianceRecords.forEach(record => {
+      if (record.isCompleted) return;
+      
+      const expirationDate = new Date(record.expirationDate);
+      const daysUntil = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+      
+      // Check if we need to send reminders
+      record.reminderDays.forEach(reminderDay => {
+        if (daysUntil === reminderDay) {
+          // Check if notification already exists
+          const existingNotification = notifications.find(n =>
+            n.type === 'compliance' &&
+            n.metadata.recordId === record.id &&
+            n.metadata.daysUntil === daysUntil
+          );
+          
+          if (!existingNotification) {
+            addNotification({
+              userId: record.loanOfficerId,
+              type: 'compliance',
+              priority: daysUntil <= 7 ? 'high' : 'normal',
+              title: 'Compliance Deadline Approaching',
+              message: `${record.description} expires in ${daysUntil} days`,
+              actionUrl: '/compliance',
+              metadata: {
+                recordId: record.id,
+                type: record.type,
+                daysUntil,
+                expirationDate: record.expirationDate
+              }
+            });
+          }
+        }
+      });
+    });
+  };
+
+  const checkRateAlertNotifications = () => {
+    const todaysRates = interestRates.find(rate =>
+      rate.date === new Date().toISOString().split('T')[0]
+    );
+    
+    if (!todaysRates) return;
+    
+    rateAlerts.forEach(alert => {
+      if (!alert.isActive) return;
+      
+      let currentRate = 0;
+      switch (alert.loanType) {
+        case 'Conventional':
+          currentRate = parseFloat(todaysRates.conventional30) || 0;
+          break;
+        case 'FHA':
+          currentRate = parseFloat(todaysRates.fha30) || 0;
+          break;
+        case 'VA':
+          currentRate = parseFloat(todaysRates.va30) || 0;
+          break;
+        case 'Jumbo':
+          currentRate = parseFloat(todaysRates.jumbo30) || 0;
+          break;
+        default:
+          currentRate = parseFloat(todaysRates.conventional30) || 0;
+      }
+      
+      if (currentRate <= parseFloat(alert.targetRate)) {
+        // Check if notification already exists for today
+        const today = new Date().toISOString().split('T')[0];
+        const existingNotification = notifications.find(n =>
+          n.type === 'rate_alert' &&
+          n.metadata.alertId === alert.id &&
+          n.createdAt.split('T')[0] === today
+        );
+        
+        if (!existingNotification) {
+          addNotification({
+            isGlobal: true,
+            type: 'rate_alert',
+            priority: 'high',
+            title: 'Rate Alert Triggered',
+            message: `${alert.loanType} rates have dropped to ${currentRate}% (target: ${alert.targetRate}%)`,
+            actionUrl: '/',
+            metadata: {
+              alertId: alert.id,
+              loanType: alert.loanType,
+              currentRate,
+              targetRate: alert.targetRate
+            }
+          });
+        }
+      }
+    });
+  };
+
+  const checkPaymentReminders = () => {
+    // Check for pending payments
+    const pendingPayments = transactions.filter(t =>
+      t.status === 'Closed' && !t.datePaidLO
+    );
+    
+    pendingPayments.forEach(transaction => {
+      const closingDate = new Date(transaction.closingDate);
+      const daysSinceClosing = Math.ceil((new Date() - closingDate) / (1000 * 60 * 60 * 24));
+      
+      // Send reminder after 3 days
+      if (daysSinceClosing === 3) {
+        const existingNotification = notifications.find(n =>
+          n.type === 'payment' &&
+          n.metadata.transactionId === transaction.id &&
+          n.metadata.reminderType === 'pending'
+        );
+        
+        if (!existingNotification) {
+          addNotification({
+            userId: transaction.loanOfficerId,
+            type: 'payment',
+            priority: 'normal',
+            title: 'Payment Reminder',
+            message: `Commission payment is pending for ${transaction.clientName} (closed ${daysSinceClosing} days ago)`,
+            actionUrl: '/my-payments',
+            metadata: {
+              transactionId: transaction.id,
+              clientName: transaction.clientName,
+              reminderType: 'pending',
+              daysSinceClosing
+            }
+          });
+        }
+      }
+    });
+  };
+
+  const checkGoalProgress = () => {
+    // This would be called periodically to check goal progress
+    // Implementation would depend on specific goal tracking requirements
   };
 
   const value = {
@@ -738,6 +1295,11 @@ export function DataProvider({ children }) {
     realtorContacts,
     settlementContacts,
     adminUsers,
+    interestRates,
+    rateAlerts,
+    complianceRecords,
+    notifications,
+    notificationPreferences,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -763,12 +1325,27 @@ export function DataProvider({ children }) {
     updateSettlementContact,
     deleteSettlementContact,
     getRealtorSuggestions,
-    getSettlementSuggestions
+    getSettlementSuggestions,
+    addInterestRate,
+    updateInterestRate,
+    deleteInterestRate,
+    addRateAlert,
+    updateRateAlert,
+    deleteRateAlert,
+    addComplianceRecord,
+    updateComplianceRecord,
+    deleteComplianceRecord,
+    addNotification,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
+    clearAllNotifications,
+    updateNotificationPreferences,
+    checkComplianceNotifications,
+    checkRateAlertNotifications,
+    checkPaymentReminders,
+    checkGoalProgress
   };
 
-  return (
-    <DataContext.Provider value={value}>
-      {children}
-    </DataContext.Provider>
-  );
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
