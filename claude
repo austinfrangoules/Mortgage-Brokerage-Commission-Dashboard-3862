@@ -1,0 +1,249 @@
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+
+export default [
+  { ignores: ['dist'] },
+  js.configs.recommended,
+  {
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        React: true,
+        JSX: true
+      },
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true
+        },
+        sourceType: 'module'
+      }
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      'no-undef': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+      'no-unused-vars': 'off',
+      'no-case-declarations': 'off'
+    },
+  }
+];
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+{
+  "name": "mortgage-commission-tracker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run lint && vite build",
+    "lint": "eslint .",
+    "lint:error": "eslint . --quiet",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@questlabs/react-sdk": "^2.2.4",
+    "@supabase/supabase-js": "^2.39.0",
+    "react": "^18.3.1",
+    "react-router-dom": "^7.1.0",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.4.0",
+    "framer-motion": "^11.0.8",
+    "echarts": "^5.5.0",
+    "echarts-for-react": "^3.0.2",
+    "date-fns": "4.1.0",
+    "recharts": "^2.12.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "globals": "^15.9.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.20",
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.4.2"
+  }
+}
+
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+# Setting up real accounts and shared data
+
+This app used to store everything in each person's own browser, with a
+login screen that accepted any email/password. It's now wired up to run
+on Supabase (real accounts, one shared database, row-level security so
+loan officers only see their own deals). Here's how to turn it on.
+
+## 1. Create your Supabase project
+
+I can't do this step for you — it requires creating an account. Go to
+https://supabase.com, sign up (free tier is enough to start), and create
+a new project. Pick a strong database password and save it somewhere
+safe (you likely won't need it day-to-day, Supabase manages the
+connection for you).
+
+## 2. Run the schema
+
+In your Supabase project: **SQL Editor > New query**, paste the entire
+contents of `supabase/schema.sql` from this repo, and click **Run**.
+This creates all the tables, security rules, and the trigger that
+auto-creates a profile whenever someone signs in for the first time.
+
+## 3. Get your API keys
+
+**Project Settings > API**. You need two values:
+- `Project URL`
+- `anon public` key (NOT the `service_role` key — that one must never
+  end up in this app's code or in your browser)
+
+## 4. Configure the app
+
+Copy `.env.example` to `.env` in the project root and fill in the two
+values from step 3:
+
+```
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-public-key
+```
+
+`.env` is already in `.gitignore` — it won't get committed.
+
+## 5. Create yourself as the first admin
+
+1. Run the app (`npm install`, then `npm run dev`) and go to the login
+   screen.
+2. In the Supabase dashboard: **Authentication > Users > Add user** —
+   create an account with your own email and a password you choose.
+3. Back in the app, sign in with that email/password.
+4. In Supabase: **SQL Editor**, run:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'you@eastcoastmortgage.com';
+   ```
+   (use your real email). Sign out and back in — you're now an admin.
+
+## 6. Deploy the invite function (so you can add loan officers from the app)
+
+The "Add Loan Officer" / "Add Admin" buttons in User Management call a
+small server-side function that creates the person's login and emails
+them an invite. It needs to be deployed once via the Supabase CLI:
+
+```bash
+npm install -g supabase
+supabase login
+supabase link --project-ref your-project-ref
+supabase functions deploy invite-user
+```
+
+Until this is deployed, those two buttons will show an error — everything
+else in the app works without it.
+
+## 7. Invite your loan officers
+
+Once step 6 is done, use **User Management > Add Loan Officer** in the
+app itself. They'll get an email invite to set their own password, and
+their profile (NMLS #, goals, license states, etc.) will already be
+filled in from what you entered.
+
+## What changed, in plain terms
+
+- Login is now real: only people you've invited can sign in, with their
+  own password.
+- Each loan officer only sees their own deals, goals, and compliance
+  records. You (admin) see everything. This is enforced by the database
+  itself, not just hidden in the UI — so it holds even if someone pokes
+  at the app directly.
+- Data is shared: everyone is looking at the same database now, not
+  their own private browser storage.
+- The old "Demo credentials: any email/password" login and the
+  self-selected "I am an Admin" toggle are gone.
+
+## Later: mobile app
+
+You mentioned wanting a mobile app once the web version is solid. Once
+this is stable, the same Supabase backend can be reused by a React
+Native app (or a simple wrapped/PWA version) without changing the
+database or security rules at all — that part of the work is already
+done. Happy to help with that whenever you're ready.
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        },
+        success: {
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          500: '#22c55e',
+          600: '#16a34a',
+        },
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          500: '#f59e0b',
+          600: '#d97706',
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  base: './',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+   build: {
+    outDir: 'dist',
+    sourcemap: true
+  },
+});
